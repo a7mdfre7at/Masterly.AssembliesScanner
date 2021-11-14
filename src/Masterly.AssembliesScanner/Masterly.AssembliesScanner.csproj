@@ -2,6 +2,17 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net462;net5.0;netcoreapp2.0</TargetFrameworks>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Authors>Ahmad Omar Al-Freihat</Authors>
+    <Company></Company>
+    <Description>A helper methods scan and returns all assemblies in the current app domain according to name patterns.
+</Description>
+    <PackageProjectUrl>https://github.com/a7mdfre7at/Masterly.AssembliesScanner</PackageProjectUrl>
+    <PackageIcon>repo_image.png</PackageIcon>
+    <PackageReadmeFile>README.nuget.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/a7mdfre7at/Masterly.AssembliesScanner</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>Assembly;Scanner;Reflection</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

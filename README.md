@@ -22,7 +22,7 @@ Assembly[] asslemblyArray = Assemblies.Get(assemblyPatterns);
 string[] assemblyPatterns = new string[] { "Masterly.*.dll", "!.UnitTests.dll$" };
 Assembly[] asslemblyArray = Assemblies.Get(assemblyPatterns);
 
-```
+``` 
 
 ## License
 
