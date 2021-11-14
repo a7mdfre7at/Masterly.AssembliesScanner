@@ -1,111 +1,24 @@
-# Masterly.Extensions.Core
-Rich set of C# extensions methods.
+# Masterly.AssembliesScanner
+A helper methods scan and returns all assemblies in the current app domain according to name patterns.
 
-## Give a Star on Github! :star:
+## Give a Star om Github! :star:
 
 If you like or are using this project please give it a star. Thanks!
 
-### Collection Extensions
-- AddIfNotContains
-- IsNullOrEmpty
-- RemoveAll
+## Usage
 
-### Comparable Extensions
-- IsBetween
+```c#
+// Scan all assemblies that thier names starts with "Masterly." and ends with ".dll"
+string[] assemblyPatterns = new string[] { "Masterly.*.dll" };
+Assembly[] asslemblyArray = Assemblies.Get(assemblyPatterns);
 
-### Dictionary Extensions
-- ToObject
-- ToQueryString
-- TryGetValue
-- GetOrDefault
-- GetOrAdd
+// To execlud assemblies, add '!' (Exclamation mark) before name pattern as below
 
-### Enumerable Extensions
-- RecursiveJoin
-- RecursiveSelect
-- Union
-- IsEmpty
-- Split
-- MatchAny
-- MatchAll
-- AllIn
-- ContainsAll
-- ToHtmlTable
+// Scan all assemblies that thier names starts with "Masterly." and ends with ".dll" excluding all assemblies that ends with ".UnitTests.dll" 
+string[] assemblyPatterns = new string[] { "Masterly.*.dll", "!.UnitTests.dll$" };
+Assembly[] asslemblyArray = Assemblies.Get(assemblyPatterns);
 
-### List Extensions
-- InsertRange
-- FindIndex
-- AddFirst
-- AddLast
-- InsertBefore
-- InsertAfter
-- ReplaceWhile
-- ReplaceOne
-- MoveItem
-- GetOrAdd
-
-### NameValueCollection Extensions
-- ToQueryString
-
-### Object Extensions (System.Reflection)
-- GetPropertyValue
-- SetPropertyValue
-
-### Object Extensions (System)
-- Is
-- As
-- To
-- IsIn
-- If
-- AsDictionary
-- ToQueryString
-- TrimStringProperties
-- IsNumber
-- ToJsonString
-
-### String Extensions
-- ContainsIgnoreCase
-- Contains
-- EqualsIgnoreCase
-- IsBase64
-- StartsWith
-- StartsWithIgnoreCase
-- EndsWith
-- EndsWithIgnoreCase
-- IsNullOrEmpty
-- IsNullOrWhiteSpace
-- EnsureStartsWith
-- EnsureEndsWith
-- Right
-- Left
-- NormalizeLineEndings
-- NthIndexOf
-- RemovePreFix
-- RemovePostFix
-- ReplaceFirst
-- Split
-- SplitToLines
-- ToCamelCase
-- ToSentenceCase
-- ToKebabCase
-- ToSnakeCase
-- ToEnum
-- ToMd5
-- ToPascalCase
-- Truncate
-- TruncateFromBeginning
-- TruncateWithPostfix
-- GetBytes
-- IsAllUpperCase
-- FirstCharToUpper
-
-### Type Extensions
-- GetInterfacesAndAbstractClasses
-- IsAssignableToGenericType
-- HasInterfaceThatMapsToGenericTypeDefinition
-- MapsToGenericTypeDefinition
-- GetFullNameWithAssemblyName
-- IsComplex
+```
 
 ## License
 
