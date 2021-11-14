@@ -18,7 +18,7 @@ Assembly[] asslemblyArray = Assemblies.Get(assemblyPatterns);
 
 // To execlud assemblies, add '!' (Exclamation mark) before name pattern as below
 
-// Scan all assemblies that thier names starts with "Masterly." and ends with ".dll" exc;ud
+// Scan all assemblies that thier names starts with "Masterly." and ends with ".dll" excluding all assemblies that ends with ".UnitTests.dll" 
 string[] assemblyPatterns = new string[] { "Masterly.*.dll", "!.UnitTests.dll$" };
 Assembly[] asslemblyArray = Assemblies.Get(assemblyPatterns);
 
