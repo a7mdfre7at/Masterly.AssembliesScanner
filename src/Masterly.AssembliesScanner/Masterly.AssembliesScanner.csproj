@@ -5,29 +5,35 @@
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Ahmad Omar Al-Freihat</Authors>
     <Company></Company>
-    <Description>A helper methods scan and returns all assemblies in the current app domain according to name patterns.
-</Description>
+    <Description>A helper methods scan and returns all assemblies in the current app domain according to name patterns.</Description>
     <PackageProjectUrl>https://github.com/a7mdfre7at/Masterly.AssembliesScanner</PackageProjectUrl>
     <PackageIcon>repo_image.png</PackageIcon>
     <PackageReadmeFile>README.nuget.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/a7mdfre7at/Masterly.AssembliesScanner</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>Assembly;Scanner;Reflection</PackageTags>
+    <Version>1.0.0</Version>
+    <!--<PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/../../RELEASE-NOTES.md"))</PackageReleaseNotes>-->
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\..\README.nuget.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
+      <Visible>False</Visible>
     </None>
     <None Include="..\..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
+      <Visible>False</Visible>
     </None>
     <None Include="..\..\repo_image.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
+      <Visible>False</Visible>
     </None>
-    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)" />
+    <None Include="..\..\LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)">
+      <Visible>False</Visible>
+    </None>
   </ItemGroup>
 </Project>
