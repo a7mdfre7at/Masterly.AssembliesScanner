@@ -2,40 +2,47 @@ name: Build
 
 on:
   workflow_dispatch:
-    branches: [ master ]
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: Build and test
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v1
-      with:
-          dotnet-version: '6.0.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
-    - name: Install dependencies
-      run: dotnet restore
+      - name: Restore
+        run: dotnet restore
 
-    - name: Build
-      run: dotnet build --configuration Release --no-restore
+      # GeneratePackageOnBuild is on, so this also writes the .nupkg.
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-    - name: Test
-      run: dotnet test --no-restore --verbosity normal
+      - name: Test
+        run: dotnet test --configuration Release --no-build
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-      with:
-        tag_name: v1.0.0
-        release_name: Release v1.0.0
-        body_path: CHANGELOG.md
-        draft: false
-        prerelease: false
+      # The publish workflow pushes this exact, tested package.
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: nupkg
+          path: src/Masterly.AssembliesScanner/bin/Release/*.nupkg
+          if-no-files-found: error
+          retention-days: 7

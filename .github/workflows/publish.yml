@@ -1,46 +1,113 @@
 name: Publish to NuGet
-on:
-  push:
-    branches:
-      - master # Your default release branch
-    paths:
-      - 'src/Masterly.AssembliesScanner/**'
-  workflow_run:
-    workflows: ["Build"]
-    branches: [master]
-    types: 
-      - completed
-jobs:
-  on-success:
-    name: List Masterly.AssembliesScanner on nuget.org
-    runs-on: windows-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    steps:
-      - uses: actions/checkout@v2
 
-      # Required for a specific dotnet version that doesn't come with ubuntu-latest / windows-latest
-      # Visit bit.ly/2synnZl to see the list of SDKs that are pre-installed with ubuntu-latest / windows-latest
-      - name: Setup dotnet
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '6.0.x'
-      
-      # Publish
-      - name: publish on version change
-        uses: rohith/publish-nuget@v2
-        with:
-          PROJECT_FILE_PATH: src/Masterly.AssembliesScanner/Masterly.AssembliesScanner.csproj # Relative to repository root
-          # VERSION_FILE_PATH: Directory.Build.props # Filepath with version info, relative to repository root. Defaults to project file
-          VERSION_REGEX: <Version>(.*)<\/Version> # Regex pattern to extract version info in a capturing group
-          TAG_COMMIT: true # Flag to enable / disable git tagging
-          TAG_FORMAT: Masterly.AssembliesScanner-v* # Format of the git tag, [*] gets replaced with version
-          NUGET_KEY: ${{secrets.NUGET_API_KEY}} # nuget.org API key
-  
-  on-failure:
-    runs-on: windows-latest
-    name: Publish Failed
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+# Runs after every Build. It publishes only when the <Version> in the project file is not on nuget.org yet,
+# then tags the commit v<version> and creates a GitHub release with CHANGELOG.md as its body.
+#
+# Publishing uses NuGet trusted publishing: GitHub's OIDC token is exchanged for a short-lived API key, so no
+# long-lived key is stored in the repository. One-time setup:
+#   1. On nuget.org, open your account > Trusted Publishing and add a GitHub Actions policy for
+#      repository owner a7mdfre7at, repository Masterly.AssembliesScanner, workflow file publish.yml
+#      and environment nuget.
+#   2. In the repository settings, add the secret NUGET_USER with your nuget.org profile name (not your email).
+#   3. The NUGET_API_KEY secret is no longer used and can be deleted.
+
+on:
+  workflow_run:
+    workflows: [ "Build" ]
+    branches: [ master ]
+    types: [ completed ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to nuget.org
+    # Only a successful Build of a push to master. A pull request from a fork's master branch also has
+    # head_branch master, so the event must be checked too.
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      actions: read     # download the package the Build run produced
+      contents: write   # create the tag and the GitHub release
+      id-token: write   # request the OIDC token for trusted publishing
     steps:
-      - run: |
-            echo "This workflow has been canceled because of build or test failed" 
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Read the version
+        id: version
+        shell: bash
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Masterly.AssembliesScanner/Masterly.AssembliesScanner.csproj | head -n 1)
+          if [ -z "$version" ]; then
+            echo "::error::No <Version> found in the project file."
             exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check nuget.org
+        id: check
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          lower=$(echo "$VERSION" | tr '[:upper:]' '[:lower:]')
+          if curl -fsS https://api.nuget.org/v3-flatcontainer/masterly.assembliesscanner/index.json | grep -q "\"$lower\""; then
+            echo "Version $VERSION is already on nuget.org; nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download the tested package
+        if: steps.check.outputs.publish == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: nupkg
+          path: nupkg
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Setup .NET
+        if: steps.check.outputs.publish == 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: NuGet login (trusted publishing)
+        if: steps.check.outputs.publish == 'true'
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        if: steps.check.outputs.publish == 'true'
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          dotnet nuget push "nupkg/Masterly.AssembliesScanner.$VERSION.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create the GitHub release
+        if: steps.check.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.event.workflow_run.head_sha }}
+          body_path: CHANGELOG.md
+          files: nupkg/*.nupkg
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          make_latest: ${{ !contains(steps.version.outputs.version, '-') }}
