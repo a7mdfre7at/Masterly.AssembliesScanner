@@ -1,20 +1,34 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net462;net5.0;netcoreapp2.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Authors>Ahmad Omar Al-Freihat</Authors>
     <Company></Company>
-    <Description>A helper methods scan and returns all assemblies in the current app domain according to name patterns.</Description>
+    <Description>Find, inspect, check and load .NET assemblies without loading them first. Metadata-only scanning with glob and regex patterns, a binary compatibility check that predicts MissingMethodException and TypeLoadException before loading, type discovery, dependency graphs, isolated and unloadable plugin loading, hot reload and convention-based dependency injection registration.</Description>
     <PackageProjectUrl>https://github.com/a7mdfre7at/Masterly.AssembliesScanner</PackageProjectUrl>
-    <PackageIcon>repo_image.png</PackageIcon>
+    <PackageIcon>logo.png</PackageIcon>
     <PackageReadmeFile>README.nuget.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/a7mdfre7at/Masterly.AssembliesScanner</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>Assembly;Scanner;Reflection</PackageTags>
-    <Version>1.0.0</Version>
+    <PackageTags>Assembly;Scanner;Reflection;Plugins;AssemblyLoadContext;DependencyInjection;Metadata;TypeDiscovery;Compatibility;BinaryCompatibility</PackageTags>
+    <Version>2.0.0</Version>
+    <!-- Microsoft.Extensions.DependencyInjection.Abstractions 11.x warns that it is not tested on net8.0. -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     <!--<PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)/../../RELEASE-NOTES.md"))</PackageReleaseNotes>-->
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Masterly.AssembliesScanner.UnitTests" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="..\..\README.nuget.md">
@@ -27,7 +41,7 @@
       <PackagePath>\</PackagePath>
       <Visible>False</Visible>
     </None>
-    <None Include="..\..\repo_image.png">
+    <None Include="..\..\assets\branding\logo.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
       <Visible>False</Visible>
