@@ -1,26 +1,111 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- xunit.v3 test projects are stand-alone executables that run on Microsoft Testing Platform. -->
+    <OutputType>Exe</OutputType>
+    <!-- xUnit1051 asks every call that accepts a CancellationToken to pass the test's token. The scans here finish in milliseconds. -->
+    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+    <!-- The 11.x Microsoft.Extensions and System packages warn that they are not tested on net8.0. -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
 
+  <!-- Global usings for every test file, next to the implicit ones. -->
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="6.2.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.11.0" />
-    <PackageReference Include="xunit" Version="2.4.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="coverlet.collector" Version="3.1.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    <Using Include="Shouldly" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.12.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
+    <!-- Adds the coverage option to dotnet test. -->
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.12.0" />
+    <PackageReference Include="Shouldly" Version="4.3.0" />
+    <PackageReference Include="xunit.v3" Version="4.0.3" />
+  </ItemGroup>
+
+  <!--
+    Packages that the references above bring in at an older version, listed here only to lift them to
+    the latest one. Remove an entry once the package that depends on it asks for that version itself.
+
+    Shouldly 4.3.0 was built against DiffEngine 11. With the DiffEngine 21 listed here its approval
+    assertion, ShouldMatchApproved, throws MissingMethodException; the newest DiffEngine it works with
+    is 13.0.2 (with EmptyFiles 5.1.0). No test uses that assertion. Shouldly 5 drops DiffEngine.
+  -->
+  <ItemGroup>
+    <PackageReference Include="DiffEngine" Version="21.0.0" />
+    <PackageReference Include="EmptyFiles" Version="8.20.1" />
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="3.2.0" />
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="11.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.12.0" />
+    <PackageReference Include="Microsoft.DiaSymReader" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Testing.Extensions.Telemetry" Version="2.5.3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport.Abstractions" Version="2.5.3" />
+    <PackageReference Include="Microsoft.Testing.Platform" Version="2.5.3" />
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" Version="2.5.3" />
+    <PackageReference Include="System.CodeDom" Version="11.0.0" />
+    <PackageReference Include="System.Management" Version="11.0.0" />
+  </ItemGroup>
+
+  <!--
+    What Microsoft.ApplicationInsights 3.x brings with it. The test platform's telemetry extension uses
+    that package, and it loads these into the test process.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Azure.Core" Version="1.65.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Abstractions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Configuration" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Primitives" Version="11.0.0" />
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.92.0" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.92.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Abstractions" Version="8.23.0" />
+    <PackageReference Include="OpenTelemetry" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Api" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Api.ProviderBuilderExtensions" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.21.0" />
+    <PackageReference Include="OpenTelemetry.PersistentStorage.Abstractions" Version="1.2.0" />
+    <PackageReference Include="OpenTelemetry.PersistentStorage.FileSystem" Version="1.2.0" />
+    <PackageReference Include="System.ClientModel" Version="1.17.0" />
+    <PackageReference Include="System.Memory.Data" Version="11.0.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="System.Collections.Immutable" Version="11.0.0" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="11.0.0" />
+    <PackageReference Include="System.IO.Pipelines" Version="11.0.0" />
+    <PackageReference Include="System.Net.ServerSentEvents" Version="11.0.0" />
+    <PackageReference Include="System.Reflection.Metadata" Version="11.0.0" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="11.0.0" />
+    <PackageReference Include="System.Text.Json" Version="11.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Masterly.AssembliesScanner\Masterly.AssembliesScanner.csproj" />
   </ItemGroup>
+
+  <!--
+    xunit.v3 copies two DLLs meant for third-party runners (NCrunch and the like) into the output folder
+    without listing them in deps.json. The version 1 API, Assemblies.Get, loads every DLL in the base
+    directory by name, so those two would make it throw. Nothing in this project needs them.
+  -->
+  <Target Name="RemoveXunitRunnerOnlyFiles" AfterTargets="_XunitCopyRunnerDependencies" Condition="'$(TargetFramework)' != ''">
+    <Delete Files="$(OutDir)xunit.abstractions.dll;$(OutDir)xunit.v3.runner.utility.netcore.dll" />
+  </Target>
 
 </Project>
