@@ -8,8 +8,8 @@ name: Publish to NuGet
 #   1. On nuget.org, open your account > Trusted Publishing and add a GitHub Actions policy for
 #      repository owner a7mdfre7at, repository Masterly.AssembliesScanner, workflow file publish.yml
 #      and environment nuget.
-#   2. In the repository settings, add the secret NUGET_USER with your nuget.org profile name (not your email).
-#   3. The NUGET_API_KEY secret is no longer used and can be deleted.
+#   2. The NUGET_API_KEY secret is no longer used and can be deleted.
+# The login step names the nuget.org profile (a7mdfre7at) that owns the policy; it is public, so it is not a secret.
 
 on:
   workflow_run:
@@ -86,7 +86,7 @@ jobs:
         id: login
         uses: NuGet/login@v1
         with:
-          user: ${{ secrets.NUGET_USER }}
+          user: a7mdfre7at
 
       - name: Push to nuget.org
         if: steps.check.outputs.publish == 'true'
