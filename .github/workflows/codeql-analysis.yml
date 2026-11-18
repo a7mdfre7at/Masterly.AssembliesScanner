@@ -1,17 +1,25 @@
 name: CodeQL Analysis
 
+# Build (build.yml) calls this workflow for pushes and pull requests to master and for the monthly scheduled run,
+# so a commit on master only counts as built, and is only published, when CodeQL passed too.
+# Pushes to other branches run it on their own, to check a branch before it is merged.
+#
+# The analysis fails when it finds an error-level result or a security result of high or critical severity,
+# the same thresholds GitHub's own pull-request check uses. Lower-severity results are uploaded and shown under
+# Security > Code scanning, but do not fail the run.
+
 on:
-  workflow_dispatch:
+  workflow_call:
   push:
-  pull_request:
-  schedule:
-    - cron: '0 8 1 * *'
+    branches-ignore: [ master ]
 
 permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.ref }}
+  # In a called workflow github.workflow is the caller's name, so a call from Build never cancels, or is cancelled
+  # by, a run of this workflow on its own.
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -50,3 +58,51 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:csharp
+          output: sarif-results
+
+      - name: Fail on errors and high-severity security results
+        shell: pwsh
+        run: |
+          $blocking = foreach ($file in Get-ChildItem sarif-results -Filter *.sarif) {
+            $sarif = Get-Content $file.FullName -Raw | ConvertFrom-Json
+            foreach ($run in $sarif.runs) {
+              # Rule metadata lives on the driver and on each query pack (extension).
+              $rules = @{}
+              foreach ($component in @($run.tool.driver) + @($run.tool.extensions)) {
+                foreach ($rule in $component.rules) { $rules[$rule.id] = $rule }
+              }
+              foreach ($result in $run.results) {
+                if ($result.suppressions) { continue }
+                $ruleId = $result.ruleId ?? $result.rule.id
+                $rule = $rules[$ruleId]
+                $level = $result.level ?? $rule.defaultConfiguration.level ?? 'warning'
+                $securitySeverity = [double]($rule.properties.'security-severity' ?? 0)
+                if ($level -eq 'error' -or $securitySeverity -ge 7.0) {
+                  $location = $result.locations[0].physicalLocation
+                  [pscustomobject]@{
+                    Rule     = $ruleId
+                    Severity = if ($securitySeverity -ge 7.0) { "security $securitySeverity" } else { $level }
+                    File     = $location.artifactLocation.uri
+                    Line     = $location.region.startLine
+                    Message  = $result.message.text -replace '\r?\n', ' '
+                  }
+                }
+              }
+            }
+          }
+
+          if (-not $blocking) {
+            "CodeQL found no error-level or high-severity security results." | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+
+          foreach ($item in $blocking) {
+            Write-Output "::error file=$($item.File),line=$($item.Line),title=$($item.Rule)::$($item.Severity): $($item.Message)"
+          }
+          "### CodeQL: $(@($blocking).Count) blocking result(s)" >> $env:GITHUB_STEP_SUMMARY
+          "| Rule | Severity | Location |" >> $env:GITHUB_STEP_SUMMARY
+          "| --- | --- | --- |" >> $env:GITHUB_STEP_SUMMARY
+          foreach ($item in $blocking) {
+            "| $($item.Rule) | $($item.Severity) | $($item.File):$($item.Line) |" >> $env:GITHUB_STEP_SUMMARY
+          }
+          exit 1

@@ -1,6 +1,6 @@
 name: Publish to NuGet
 
-# Runs after every Build. It publishes only when the <Version> in the project file is not on nuget.org yet,
+# Runs after every Build. A Build run succeeds only when both build-and-test and CodeQL passed. It publishes only when the <Version> in the project file is not on nuget.org yet,
 # then tags the commit v<version> and creates a GitHub release with CHANGELOG.md as its body.
 #
 # Publishing uses NuGet trusted publishing: GitHub's OIDC token is exchanged for a short-lived API key, so no

@@ -1,17 +1,24 @@
 name: Build
 
+# Two jobs: build and test, and CodeQL (codeql-analysis.yml). The run succeeds only when both do, and the publish
+# workflow publishes only after a successful run, so nothing reaches nuget.org without a passing CodeQL analysis.
+
 on:
   workflow_dispatch:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  # Monthly, so CodeQL picks up new queries on unchanged code. Publish ignores scheduled runs.
+  schedule:
+    - cron: '0 8 1 * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
+  # The event is part of the group so the scheduled run never cancels a push build of master.
+  group: build-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,3 +53,11 @@ jobs:
           path: src/Masterly.AssembliesScanner/bin/Release/*.nupkg
           if-no-files-found: error
           retention-days: 7
+
+  codeql:
+    name: CodeQL
+    uses: ./.github/workflows/codeql-analysis.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
