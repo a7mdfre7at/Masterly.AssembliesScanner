@@ -486,12 +486,11 @@ public sealed class AssemblyScanner
     private AssemblyScanner AddPatterns(string[] patterns, PatternSyntax syntax, bool exclude)
     {
         ArgumentNullException.ThrowIfNull(patterns);
-        foreach (string text in patterns.Where(p => !string.IsNullOrWhiteSpace(p)))
+        foreach (NamePattern pattern in patterns
+                     .Where(p => !string.IsNullOrWhiteSpace(p))
+                     .Select(p => NamePattern.Parse(p, syntax))
+                     .Select(p => exclude ? p.AsExclusion() : p))
         {
-            NamePattern pattern = NamePattern.Parse(text, syntax);
-            if (exclude)
-                pattern = pattern.AsExclusion();
-
             (pattern.IsExclusion ? _excludes : _includes).Add(pattern);
         }
 

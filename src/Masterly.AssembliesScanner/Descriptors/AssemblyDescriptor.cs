@@ -222,8 +222,8 @@ public sealed class AssemblyDescriptor
 
         foreach (TypeDescriptor type in types.Where(t => t.IsConcreteClass))
         {
-            TypeDescriptor? current = type;
-            for (int depth = 0; current is not null && depth < 64; depth++)
+            int depth = 0;
+            for (TypeDescriptor? current = type; current is not null && depth < 64; depth++)
             {
                 if (current.Declares(typeFullName))
                     return true;

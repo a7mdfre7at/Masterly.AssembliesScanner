@@ -98,27 +98,35 @@ internal sealed class MetadataModule : IDisposable
 
     private static MetadataModule? Open(string path, PEStreamOptions options)
     {
-        PEReader? pe = null;
+        // The reader prefetches what it needs, so the file is closed as soon as the reader exists.
+        PEReader pe;
         try
         {
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
             pe = new PEReader(stream, options | PEStreamOptions.LeaveOpen);
-            if (pe.HasMetadata && pe.GetMetadataReader().IsAssembly)
-            {
-                var module = new MetadataModule(pe, path);
-                pe = null; // The module owns the reader now.
-                return module;
-            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or BadImageFormatException)
         {
-            // Not an assembly the runtime could use either; the caller treats it as absent.
-        }
-        finally
-        {
-            pe?.Dispose();
+            return null; // Not an assembly the runtime could use either; the caller treats it as absent.
         }
 
+        // On success the module owns the reader; on every other path it is disposed here.
+        try
+        {
+            if (pe.HasMetadata && pe.GetMetadataReader().IsAssembly)
+                return new MetadataModule(pe, path);
+        }
+        catch (BadImageFormatException)
+        {
+            // Malformed metadata; treated as absent, like an unreadable file.
+        }
+        catch
+        {
+            pe.Dispose();
+            throw;
+        }
+
+        pe.Dispose();
         return null;
     }
 
