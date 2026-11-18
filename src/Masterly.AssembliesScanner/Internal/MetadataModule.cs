@@ -110,7 +110,15 @@ internal sealed class MetadataModule : IDisposable
             return null; // Not an assembly the runtime could use either; the caller treats it as absent.
         }
 
-        // On success the module owns the reader; on every other path it is disposed here.
+        return Adopt(pe, path);
+    }
+
+    /// <summary>
+    /// Takes ownership of <paramref name="pe"/>: returns a module that owns it when it holds an assembly,
+    /// otherwise disposes it and returns <c>null</c>.
+    /// </summary>
+    private static MetadataModule? Adopt(PEReader pe, string path)
+    {
         try
         {
             if (pe.HasMetadata && pe.GetMetadataReader().IsAssembly)
