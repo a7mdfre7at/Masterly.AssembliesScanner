@@ -153,18 +153,18 @@ public sealed class IsolatedLoadContext : AssemblyLoadContext
 
     private string? ResolvePath(AssemblyName assemblyName)
     {
-        foreach (AssemblyDependencyResolver resolver in _resolvers)
-        {
-            string? path = resolver.ResolveAssemblyToPath(assemblyName);
-            if (path is not null)
-                return path;
-        }
+        string? resolved = _resolvers
+            .Select(resolver => resolver.ResolveAssemblyToPath(assemblyName))
+            .FirstOrDefault(path => path is not null);
+
+        if (resolved is not null)
+            return resolved;
 
         foreach (string directory in _probingDirectories)
         {
             string candidate = string.IsNullOrEmpty(assemblyName.CultureName)
-                ? Path.Combine(directory, assemblyName.Name + ".dll")
-                : Path.Combine(directory, assemblyName.CultureName, assemblyName.Name + ".dll");
+                ? Path.Join(directory, assemblyName.Name + ".dll")
+                : Path.Join(directory, assemblyName.CultureName, assemblyName.Name + ".dll");
 
             if (File.Exists(candidate))
                 return candidate;
@@ -216,11 +216,8 @@ public sealed class IsolatedAssemblySet : IDisposable
         _assemblies = Array.Empty<Assembly>();
         _contexts = Array.Empty<IsolatedLoadContext>();
 
-        foreach (IsolatedLoadContext context in contexts)
-        {
-            if (context.IsCollectible)
-                context.Unload();
-        }
+        foreach (IsolatedLoadContext context in contexts.Where(c => c.IsCollectible))
+            context.Unload();
     }
 
     internal static IsolatedAssemblySet Load(IReadOnlyList<AssemblyDescriptor> descriptors, IsolationOptions options)
@@ -246,7 +243,7 @@ public sealed class IsolatedAssemblySet : IDisposable
         }
 
         IEnumerable<IReadOnlyList<AssemblyDescriptor>> groups = options.PerAssembly
-            ? loadable.Select(d => (IReadOnlyList<AssemblyDescriptor>)[d])
+            ? loadable.Select<AssemblyDescriptor, IReadOnlyList<AssemblyDescriptor>>(d => [d])
             : loadable.Count == 0 ? [] : [loadable];
 
         foreach (IReadOnlyList<AssemblyDescriptor> group in groups)

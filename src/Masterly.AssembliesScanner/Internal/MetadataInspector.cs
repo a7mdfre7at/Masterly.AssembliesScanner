@@ -87,16 +87,13 @@ internal static class MetadataInspector
         Version version = definition.Version;
         string? token = ComputePublicKeyToken(reader.GetBlobBytes(definition.PublicKey));
 
-        var references = new List<AssemblyReferenceInfo>(reader.AssemblyReferences.Count);
-        foreach (AssemblyReferenceHandle handle in reader.AssemblyReferences)
-        {
-            AssemblyReference reference = reader.GetAssemblyReference(handle);
-            references.Add(new AssemblyReferenceInfo(
+        List<AssemblyReferenceInfo> references = [.. reader.AssemblyReferences
+            .Select(reader.GetAssemblyReference)
+            .Select(reference => new AssemblyReferenceInfo(
                 reader.GetString(reference.Name),
                 reference.Version,
                 reader.GetString(reference.Culture),
-                GetPublicKeyToken(reader, reference)));
-        }
+                GetPublicKeyToken(reader, reference)))];
 
         var attributeNames = new List<string>();
         var metadata = new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -104,14 +101,13 @@ internal static class MetadataInspector
         string? product = null, title = null, description = null, configuration = null;
         bool isReferenceAssembly = false;
 
-        foreach (CustomAttributeHandle handle in definition.GetCustomAttributes())
-        {
-            CustomAttribute attribute = reader.GetCustomAttribute(handle);
-            string? attributeName = GetAttributeTypeName(reader, attribute);
-            if (attributeName is null)
-                continue;
+        IEnumerable<(CustomAttribute Attribute, string? Name)> attributes = definition.GetCustomAttributes()
+            .Select(reader.GetCustomAttribute)
+            .Select(attribute => (attribute, GetAttributeTypeName(reader, attribute)));
 
-            attributeNames.Add(attributeName);
+        foreach ((CustomAttribute attribute, string? attributeName) in attributes.Where(a => a.Name is not null))
+        {
+            attributeNames.Add(attributeName!);
             switch (attributeName)
             {
                 case "System.Runtime.Versioning.TargetFrameworkAttribute":

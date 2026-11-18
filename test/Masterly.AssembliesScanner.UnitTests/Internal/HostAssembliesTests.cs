@@ -53,6 +53,6 @@ public class HostAssembliesTests : IDisposable
         string runtimeFile = typeof(object).Assembly.Location;
 
         FrameworkAssemblies.IsFramework("Anything", null, runtimeFile).ShouldBeTrue();
-        FrameworkAssemblies.IsFramework("Anything", null, Path.Combine(_temp.Path, "Anything.dll")).ShouldBeFalse();
+        FrameworkAssemblies.IsFramework("Anything", null, Path.Join(_temp.Path, "Anything.dll")).ShouldBeFalse();
     }
 }

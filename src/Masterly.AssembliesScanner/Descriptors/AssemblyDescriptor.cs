@@ -220,11 +220,8 @@ public sealed class AssemblyDescriptor
         IReadOnlyList<TypeDescriptor> types = Types;
         Dictionary<string, TypeDescriptor>? byName = null;
 
-        foreach (TypeDescriptor type in types)
+        foreach (TypeDescriptor type in types.Where(t => t.IsConcreteClass))
         {
-            if (!type.IsConcreteClass)
-                continue;
-
             TypeDescriptor? current = type;
             for (int depth = 0; current is not null && depth < 64; depth++)
             {

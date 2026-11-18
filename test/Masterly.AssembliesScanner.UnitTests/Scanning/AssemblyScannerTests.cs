@@ -52,8 +52,8 @@ public class AssemblyScannerTests : IDisposable
     {
         string name = Fixture.UniqueName("Good");
         Fixture.Compile(_temp.Path, name, "public class A { }");
-        File.WriteAllText(Path.Combine(_temp.Path, "native.dll"), "this is not a portable executable");
-        File.WriteAllBytes(Path.Combine(_temp.Path, "empty.dll"), []);
+        File.WriteAllText(Path.Join(_temp.Path, "native.dll"), "this is not a portable executable");
+        File.WriteAllBytes(Path.Join(_temp.Path, "empty.dll"), []);
 
         ScanResult result = Assemblies.Scan().FromDirectory(_temp.Path).Scan();
 
@@ -67,7 +67,7 @@ public class AssemblyScannerTests : IDisposable
     [Fact]
     public void Scan_ReportsMissingDirectory_InsteadOfThrowing()
     {
-        string missing = Path.Combine(_temp.Path, "does-not-exist");
+        string missing = Path.Join(_temp.Path, "does-not-exist");
 
         ScanResult result = Assemblies.Scan().FromDirectory(missing).Scan();
 
@@ -130,7 +130,7 @@ public class AssemblyScannerTests : IDisposable
         string wanted = Fixture.Compile(_temp.Path, "Wanted", "public class A { }");
         Fixture.Compile(_temp.Path, "Unwanted", "public class A { }");
 
-        ScanResult result = Assemblies.Scan().FromFiles(wanted, Path.Combine(_temp.Path, "missing.dll")).Scan();
+        ScanResult result = Assemblies.Scan().FromFiles(wanted, Path.Join(_temp.Path, "missing.dll")).Scan();
 
         result.Select(a => a.Name).ShouldBe(["Wanted"]);
         result.Diagnostics.ShouldContain(d => d.Reason == SkipReason.SourceNotFound, 1);
@@ -389,7 +389,7 @@ public class AssemblyScannerTests : IDisposable
     public void Scan_KeepsOneCopy_WhenTheSameBuildIsFoundTwice()
     {
         string original = Fixture.Compile(_temp.Sub("a"), "Twin", "public class A { }");
-        File.Copy(original, Path.Combine(_temp.Sub("b"), "Twin.dll"));
+        File.Copy(original, Path.Join(_temp.Sub("b"), "Twin.dll"));
 
         ScanResult result = Assemblies.Scan().FromDirectory(_temp.Path, recursive: true).Scan();
 
@@ -519,7 +519,7 @@ public class AssemblyScannerTests : IDisposable
     [Fact]
     public void Scan_TellsNativeImagesModulesAndLockedFilesApart()
     {
-        Fixture.WriteNativeImage(Path.Combine(_temp.Path, "Native.dll"));
+        Fixture.WriteNativeImage(Path.Join(_temp.Path, "Native.dll"));
         Fixture.Compile(_temp.Path, "Module", "public class A { }", kind: Microsoft.CodeAnalysis.OutputKind.NetModule);
         string locked = Fixture.Compile(_temp.Path, "Locked", "public class A { }");
         AssemblyScanner scanner = Assemblies.Scan().FromDirectory(_temp.Path);
@@ -549,7 +549,7 @@ public class AssemblyScannerTests : IDisposable
         Fixture.Compile(_temp.Sub("two"), "DirTwo", "public class A { }");
 
         ScanResult result = Assemblies.Scan()
-            .FromDirectories(Path.Combine(_temp.Path, "one"), Path.Combine(_temp.Path, "two"))
+            .FromDirectories(Path.Join(_temp.Path, "one"), Path.Join(_temp.Path, "two"))
             .FromBaseDirectory()
             .Include("Dir*", "Masterly.AssembliesScanner")
             .Scan();
@@ -613,7 +613,13 @@ public class AssemblyScannerTests : IDisposable
 
         AssemblyScanner scanner = Assemblies.Scan()
             .FromDirectory(_temp.Path)
-            .Where(a => a.Name == "Bulk07" ? throw new InvalidOperationException("boom") : true, "explosive");
+            .Where(a =>
+            {
+                if (a.Name == "Bulk07")
+                    throw new InvalidOperationException("boom");
+
+                return true;
+            }, "explosive");
         if (onOneThread)
             scanner.WithParallelism(1);
 

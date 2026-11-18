@@ -24,7 +24,7 @@ internal sealed class TempDirectory : IDisposable
 {
     public TempDirectory()
     {
-        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "masterly-scanner-tests", Guid.NewGuid().ToString("N"));
+        Path = System.IO.Path.Join(System.IO.Path.GetTempPath(), "masterly-scanner-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path);
     }
 
@@ -32,7 +32,7 @@ internal sealed class TempDirectory : IDisposable
 
     public string Sub(string name)
     {
-        string path = System.IO.Path.Combine(Path, name);
+        string path = System.IO.Path.Join(Path, name);
         Directory.CreateDirectory(path);
         return path;
     }
@@ -93,7 +93,7 @@ internal static class Fixture
         if (!result.Success)
             throw new InvalidOperationException("Fixture did not compile:" + Environment.NewLine + string.Join(Environment.NewLine, result.Diagnostics));
 
-        string path = Path.Combine(directory, assemblyName + ".dll");
+        string path = Path.Join(directory, assemblyName + ".dll");
         if (withSymbols)
             File.WriteAllBytes(Path.ChangeExtension(path, ".pdb"), symbols.ToArray());
 
@@ -160,7 +160,7 @@ internal static class Fixture
             new MetadataRootBuilder(metadata),
             ilStream: new BlobBuilder()).Serialize(image);
 
-        string path = Path.Combine(directory, assemblyName + ".dll");
+        string path = Path.Join(directory, assemblyName + ".dll");
         File.WriteAllBytes(path, image.ToArray());
         return path;
     }
@@ -193,7 +193,7 @@ internal static class Fixture
             new MetadataRootBuilder(metadata),
             ilStream: new BlobBuilder()).Serialize(image);
 
-        string path = Path.Combine(directory, assemblyName + ".dll");
+        string path = Path.Join(directory, assemblyName + ".dll");
         File.WriteAllBytes(path, image.ToArray());
         return path;
     }

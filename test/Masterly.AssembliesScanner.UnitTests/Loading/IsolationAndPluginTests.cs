@@ -108,7 +108,7 @@ public class IsolationAndPluginTests : IDisposable
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static WeakReference LoadUseAndDispose(ScanResult scan)
     {
-        IsolatedAssemblySet set = scan.LoadIsolated();
+        using IsolatedAssemblySet set = scan.LoadIsolated();
         var reference = new WeakReference(set.Contexts[0]);
         Fixture.Create(set.Assemblies[0], "Thing");
 
@@ -142,7 +142,7 @@ public class IsolationAndPluginTests : IDisposable
         Fixture.Compile(_temp.Sub("app"), Fixture.UniqueName("Partial"),
             "public class Broken : AbsentBase { } public class Intact { }", [dependency]);
 
-        using IsolatedAssemblySet set = Assemblies.Scan().FromDirectory(Path.Combine(_temp.Path, "app")).Scan().LoadIsolated();
+        using IsolatedAssemblySet set = Assemblies.Scan().FromDirectory(Path.Join(_temp.Path, "app")).Scan().LoadIsolated();
         TypeQuery types = set.Types();
 
         types.Select(t => t.Name).ShouldBe(["Intact"]);
@@ -252,7 +252,7 @@ public class IsolationAndPluginTests : IDisposable
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static WeakReference LoadPluginsAndDispose(ScanResult scan, out int disposed)
     {
-        PluginSet<IGreeter> plugins = scan.LoadPlugins<IGreeter>();
+        using PluginSet<IGreeter> plugins = scan.LoadPlugins<IGreeter>();
         Type type = plugins.PluginTypes.Single();
         var reference = new WeakReference(AssemblyLoadContext.GetLoadContext(type.Assembly));
 
@@ -274,17 +274,16 @@ public class IsolationAndPluginTests : IDisposable
         string hostCopy = Fixture.Compile(_temp.Sub("host"), contractName, contractSource);
         string pluginFolder = _temp.Sub("plugin");
         string pluginName = Fixture.UniqueName("Mismatched");
-        File.Copy(hostCopy, Path.Combine(pluginFolder, contractName + ".dll"));
+        File.Copy(hostCopy, Path.Join(pluginFolder, contractName + ".dll"));
         Fixture.Compile(pluginFolder, pluginName, "public class Implementation : IContract { }", [hostCopy]);
 
         Type contract = AssemblyLoadContext.Default.LoadFromAssemblyPath(hostCopy).GetType("IContract")!;
         ScanResult scan = Assemblies.Scan().FromDirectory(pluginFolder).Include(pluginName).Scan();
 
         Action<PluginOptions> configure = o => o.Isolation.PreferSharedTypes = false;
-        object plugins = typeof(ScanResult).GetMethod(nameof(ScanResult.LoadPlugins))!.MakeGenericMethod(contract).Invoke(scan, [configure])!;
+        using var plugins = (IDisposable)typeof(ScanResult).GetMethod(nameof(ScanResult.LoadPlugins))!.MakeGenericMethod(contract).Invoke(scan, [configure])!;
         var failures = (IReadOnlyList<ScanDiagnostic>)plugins.GetType().GetProperty("Failures")!.GetValue(plugins)!;
         int count = (int)plugins.GetType().GetProperty("Count")!.GetValue(plugins)!;
-        ((IDisposable)plugins).Dispose();
 
         count.ShouldBe(0);
         failures.ShouldHaveSingleItem().Message.ShouldContain("second copy of the contract assembly", Case.Sensitive);
@@ -398,7 +397,7 @@ public class IsolationAndPluginTests : IDisposable
         string dependency = Fixture.Compile(_temp.Path, dependencyName, """public static class Secret { public static string Value => "found by probing"; }""");
         Fixture.Compile(_temp.Path, mainName, "public class Reader { public string Read() => Secret.Value; }", [dependency]);
         File.WriteAllText(
-            Path.Combine(_temp.Path, mainName + ".deps.json"),
+            Path.Join(_temp.Path, mainName + ".deps.json"),
             """{"runtimeTarget":{"name":".NETCoreApp,Version=v8.0"},"targets":{".NETCoreApp,Version=v8.0":{}},"libraries":{}}""");
 
         using IsolatedAssemblySet set = Assemblies.Scan().FromDirectory(_temp.Path).Include(mainName).Scan().LoadIsolated();
@@ -431,7 +430,7 @@ public class IsolationAndPluginTests : IDisposable
     public void LoadIsolated_Dispose_CanBeRepeated()
     {
         Fixture.Compile(_temp.Path, Fixture.UniqueName("DisposedTwice"), "public class A { }");
-        IsolatedAssemblySet set = Assemblies.Scan().FromDirectory(_temp.Path).Scan().LoadIsolated();
+        using IsolatedAssemblySet set = Assemblies.Scan().FromDirectory(_temp.Path).Scan().LoadIsolated();
 
         set.Dispose();
         set.Dispose();
@@ -492,7 +491,7 @@ public class IsolationAndPluginTests : IDisposable
             }
             """);
         Fixture.Compile(_temp.Path, Fixture.UniqueName("DisposesFine"), HelloPlugin);
-        PluginSet<IGreeter> plugins = Assemblies.Scan().FromDirectory(_temp.Path).Scan().LoadPlugins<IGreeter>();
+        using PluginSet<IGreeter> plugins = Assemblies.Scan().FromDirectory(_temp.Path).Scan().LoadPlugins<IGreeter>();
         plugins.Count.ShouldBe(2);
 
         plugins.Dispose();

@@ -14,7 +14,7 @@ public class ScanResultTests : IDisposable
     {
         Fixture.Compile(_temp.Path, "Chosen", "public class A { }");
         Fixture.Compile(_temp.Path, "Rejected.Tests", "public class A { }");
-        File.WriteAllText(Path.Combine(_temp.Path, "native.dll"), "junk");
+        File.WriteAllText(Path.Join(_temp.Path, "native.dll"), "junk");
 
         ScanResult result = Assemblies.Scan().FromDirectory(_temp.Path).Exclude("*.Tests").Scan();
 
@@ -80,7 +80,7 @@ public class ScanResultTests : IDisposable
     public void ToJson_WritesAParseableInventory()
     {
         Fixture.Compile(_temp.Path, "Inventory", """[assembly: System.Reflection.AssemblyVersion("1.2.3.4")] public class A { }""");
-        File.WriteAllText(Path.Combine(_temp.Path, "native.dll"), "junk");
+        File.WriteAllText(Path.Join(_temp.Path, "native.dll"), "junk");
         ScanResult result = Assemblies.Scan().FromDirectory(_temp.Path).Scan();
 
         using JsonDocument document = JsonDocument.Parse(result.ToJson(includeHashes: true));
@@ -102,7 +102,7 @@ public class ScanResultTests : IDisposable
     public void ToMarkdown_ListsAssembliesAndWhatWasLeftOut()
     {
         Fixture.Compile(_temp.Path, "Reported", "public class A { }");
-        File.WriteAllText(Path.Combine(_temp.Path, "native.dll"), "junk");
+        File.WriteAllText(Path.Join(_temp.Path, "native.dll"), "junk");
 
         string markdown = Assemblies.Scan().FromDirectory(_temp.Path).Scan().ToMarkdown();
 
@@ -160,7 +160,7 @@ public class ScanResultTests : IDisposable
     [Fact]
     public void Cache_DoesNotRememberAFileItCouldNotRead()
     {
-        string path = Path.Combine(_temp.Path, "Late.dll");
+        string path = Path.Join(_temp.Path, "Late.dll");
 
         InspectionResult cached = ScanCache.Inspect(path, useCache: true);
         InspectionResult direct = ScanCache.Inspect(path, useCache: false);
@@ -189,7 +189,7 @@ public class ScanResultTests : IDisposable
     [Fact]
     public void Diagnostic_DescribesItself()
     {
-        string missing = Path.Combine(_temp.Path, "nowhere");
+        string missing = Path.Join(_temp.Path, "nowhere");
 
         ScanDiagnostic diagnostic = Assemblies.Scan().FromDirectory(missing).Scan().Diagnostics.ShouldHaveSingleItem();
 

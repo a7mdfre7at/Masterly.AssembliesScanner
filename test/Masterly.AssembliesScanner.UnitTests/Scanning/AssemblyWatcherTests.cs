@@ -89,7 +89,7 @@ public class AssemblyWatcherTests : IDisposable
     [Fact]
     public void Watch_RejectsADirectoryThatDoesNotExist()
     {
-        Action act = () => Assemblies.Scan().FromDirectory(Path.Combine(_temp.Path, "missing")).Watch();
+        Action act = () => Assemblies.Scan().FromDirectory(Path.Join(_temp.Path, "missing")).Watch();
 
         Should.Throw<ArgumentException>(act);
     }
@@ -111,7 +111,7 @@ public class AssemblyWatcherTests : IDisposable
     [Fact]
     public void Refresh_AfterDispose_DoesNothing()
     {
-        AssemblyWatcher watcher = Assemblies.Scan().FromDirectory(_temp.Path).Watch(TimeSpan.FromHours(1));
+        using AssemblyWatcher watcher = Assemblies.Scan().FromDirectory(_temp.Path).Watch(TimeSpan.FromHours(1));
         bool raised = false;
         watcher.Changed += (_, _) => raised = true;
 
@@ -130,7 +130,13 @@ public class AssemblyWatcherTests : IDisposable
         bool fail = false;
         using AssemblyWatcher watcher = Assemblies.Scan()
             .FromDirectory(_temp.Path)
-            .Where(a => fail ? throw new InvalidOperationException("rescan failed") : true, "fails on demand")
+            .Where(_ =>
+            {
+                if (fail)
+                    throw new InvalidOperationException("rescan failed");
+
+                return true;
+            }, "fails on demand")
             .Watch(TimeSpan.FromHours(1));
         Fixture.Compile(_temp.Path, "Trigger", "public class A { }");
         fail = true;

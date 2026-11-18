@@ -40,7 +40,7 @@ public class DependencyGraphTests : IDisposable
         string ghost = Fixture.Compile(_temp.Sub("elsewhere"), "Ghost.Library", "public class Ghost { }");
         Fixture.Compile(_temp.Sub("app"), "Haunted", "public class Haunted : Ghost { }", [ghost]);
 
-        DependencyGraph graph = ScanGraph(Path.Combine(_temp.Path, "app"), out _);
+        DependencyGraph graph = ScanGraph(Path.Join(_temp.Path, "app"), out _);
 
         ReferenceRequest missing = graph.MissingReferences.ShouldHaveSingleItem();
         missing.Referrer.Name.ShouldBe("Haunted");
@@ -77,7 +77,7 @@ public class DependencyGraphTests : IDisposable
         string app = _temp.Sub("app");
         Fixture.Compile(app, "WantsOne", "public class A : Thing { }", [v1]);
         Fixture.Compile(app, "WantsTwo", "public class B : Thing { }", [v2]);
-        File.Copy(v2, Path.Combine(app, "Split.Library.dll"));
+        File.Copy(v2, Path.Join(app, "Split.Library.dll"));
 
         DependencyGraph graph = ScanGraph(app, out _);
 
@@ -123,8 +123,8 @@ public class DependencyGraphTests : IDisposable
     {
         Fixture.Compile(_temp.Sub("one"), "Graph.One", "public class A { }");
         Fixture.Compile(_temp.Sub("two"), "Graph.Two", "public class A { }");
-        DependencyGraph graph = ScanGraph(Path.Combine(_temp.Path, "one"), out _);
-        ScanGraph(Path.Combine(_temp.Path, "two"), out ScanResult other);
+        DependencyGraph graph = ScanGraph(Path.Join(_temp.Path, "one"), out _);
+        ScanGraph(Path.Join(_temp.Path, "two"), out ScanResult other);
 
         Action act = () => graph.GetDependencies(other[0]);
 

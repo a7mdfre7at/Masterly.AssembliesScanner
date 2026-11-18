@@ -177,17 +177,10 @@ public sealed class TypeQuery : IEnumerable<Type>
         if (!openGenericType.IsGenericTypeDefinition)
             throw new ArgumentException("An open generic type such as typeof(IHandler<>) is required.", nameof(openGenericType));
 
-        var matches = new List<ClosedGenericMatch>();
-        foreach (Type type in this)
-        {
-            if (!IsConcrete(type) || type.IsGenericTypeDefinition)
-                continue;
-
-            foreach (Type closed in GetClosedTypesOf(type, openGenericType))
-                matches.Add(new ClosedGenericMatch(closed, type));
-        }
-
-        return matches;
+        return this
+            .Where(type => IsConcrete(type) && !type.IsGenericTypeDefinition)
+            .SelectMany(type => GetClosedTypesOf(type, openGenericType).Select(closed => new ClosedGenericMatch(closed, type)))
+            .ToList();
     }
 
     /// <summary>Pairs every matching type with its <typeparamref name="TAttribute"/> instances.</summary>
@@ -213,30 +206,19 @@ public sealed class TypeQuery : IEnumerable<Type>
     /// <param name="services">Satisfies constructor parameters. Without it a parameterless constructor is required.</param>
     public IReadOnlyList<T> CreateInstances<T>(IServiceProvider? services = null) where T : class
     {
-        var instances = new List<T>();
-        foreach (Type type in this)
-        {
-            if (!IsConcrete(type) || type.ContainsGenericParameters || !typeof(T).IsAssignableFrom(type))
-                continue;
-
-            object instance = services is not null
+        return this
+            .Where(type => IsConcrete(type) && !type.ContainsGenericParameters && typeof(T).IsAssignableFrom(type))
+            .Select(type => (T)(services is not null
                 ? ActivatorUtilities.CreateInstance(services, type)
-                : Activator.CreateInstance(type, nonPublic: true)!;
-
-            instances.Add((T)instance);
-        }
-
-        return instances;
+                : Activator.CreateInstance(type, nonPublic: true)!))
+            .ToList();
     }
 
     /// <inheritdoc />
     public IEnumerator<Type> GetEnumerator()
     {
-        foreach (Type type in _source.Value.Types)
-        {
-            if (Matches(type))
-                yield return type;
-        }
+        foreach (Type type in _source.Value.Types.Where(Matches))
+            yield return type;
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -258,11 +240,8 @@ public sealed class TypeQuery : IEnumerable<Type>
     {
         if (openGenericType.IsInterface)
         {
-            foreach (Type candidate in type.GetInterfaces())
-            {
-                if (candidate.IsGenericType && candidate.GetGenericTypeDefinition() == openGenericType)
-                    yield return candidate;
-            }
+            foreach (Type candidate in type.GetInterfaces().Where(c => c.IsGenericType && c.GetGenericTypeDefinition() == openGenericType))
+                yield return candidate;
         }
         else
         {

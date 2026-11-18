@@ -45,11 +45,8 @@ public static class Assemblies
 
         var referencedProjectAssemblies = new List<Assembly>();
 
-        foreach (string pattern in assemblyPatterns)
+        foreach (string pattern in assemblyPatterns.Where(p => !string.IsNullOrEmpty(p.Trim())))
         {
-            if (string.IsNullOrEmpty(pattern.Trim()))
-                continue;
-
             List<Assembly> matchedAssemblies = GetMatchedAssemblies(allAssemblies, pattern);
 
             if (matchedAssemblies?.Count > 0)

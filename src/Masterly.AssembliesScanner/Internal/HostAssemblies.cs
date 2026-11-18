@@ -16,7 +16,7 @@ internal static class HostAssemblies
         if (Trusted.Value.TryGetValue(simpleName, out string? path))
             return path;
 
-        string candidate = Path.Combine(AppContext.BaseDirectory, simpleName + ".dll");
+        string candidate = Path.Join(AppContext.BaseDirectory, simpleName + ".dll");
         return File.Exists(candidate) ? candidate : null;
     }
 

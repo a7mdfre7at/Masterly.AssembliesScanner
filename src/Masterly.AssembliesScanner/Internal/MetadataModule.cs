@@ -104,14 +104,21 @@ internal sealed class MetadataModule : IDisposable
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
             pe = new PEReader(stream, options | PEStreamOptions.LeaveOpen);
             if (pe.HasMetadata && pe.GetMetadataReader().IsAssembly)
-                return new MetadataModule(pe, path);
+            {
+                var module = new MetadataModule(pe, path);
+                pe = null; // The module owns the reader now.
+                return module;
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or BadImageFormatException)
         {
             // Not an assembly the runtime could use either; the caller treats it as absent.
         }
+        finally
+        {
+            pe?.Dispose();
+        }
 
-        pe?.Dispose();
         return null;
     }
 
@@ -127,16 +134,16 @@ internal sealed class MetadataModule : IDisposable
     private Dictionary<string, string> IndexForwarders()
     {
         var index = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (ExportedTypeHandle handle in Reader.ExportedTypes)
+        IEnumerable<ExportedType> forwarders = Reader.ExportedTypes
+            .Select(Reader.GetExportedType)
+            .Where(exported => exported.IsForwarder && exported.Implementation.Kind == HandleKind.AssemblyReference);
+
+        foreach (ExportedType exported in forwarders)
         {
-            ExportedType exported = Reader.GetExportedType(handle);
-            if (exported.IsForwarder && exported.Implementation.Kind == HandleKind.AssemblyReference)
-            {
-                AssemblyReference target = Reader.GetAssemblyReference((AssemblyReferenceHandle)exported.Implementation);
-                index.TryAdd(
-                    MetadataInspector.Qualify(Reader.GetString(exported.Namespace), Reader.GetString(exported.Name)),
-                    Reader.GetString(target.Name));
-            }
+            AssemblyReference target = Reader.GetAssemblyReference((AssemblyReferenceHandle)exported.Implementation);
+            index.TryAdd(
+                MetadataInspector.Qualify(Reader.GetString(exported.Namespace), Reader.GetString(exported.Name)),
+                Reader.GetString(target.Name));
         }
 
         return index;
@@ -144,19 +151,15 @@ internal sealed class MetadataModule : IDisposable
 
     private HashSet<string> IndexFriends()
     {
-        var friends = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (CustomAttributeHandle handle in Reader.GetAssemblyDefinition().GetCustomAttributes())
-        {
-            CustomAttribute attribute = Reader.GetCustomAttribute(handle);
-            if (MetadataInspector.GetAttributeTypeName(Reader, attribute) != "System.Runtime.CompilerServices.InternalsVisibleToAttribute")
-                continue;
-
+        IEnumerable<string> friends = Reader.GetAssemblyDefinition().GetCustomAttributes()
+            .Select(Reader.GetCustomAttribute)
+            .Where(attribute => MetadataInspector.GetAttributeTypeName(Reader, attribute) == "System.Runtime.CompilerServices.InternalsVisibleToAttribute")
+            .Select(attribute => MetadataInspector.ReadStrings(Reader, attribute, 1)?[0])
+            .OfType<string>()
             // "Friend.Assembly, PublicKey=0024..." names the friend by its simple name first.
-            if (MetadataInspector.ReadStrings(Reader, attribute, 1)?[0] is string friend)
-                friends.Add(friend.Split(',')[0].Trim());
-        }
+            .Select(friend => friend.Split(',')[0].Trim());
 
-        return friends;
+        return new HashSet<string>(friends, StringComparer.OrdinalIgnoreCase);
     }
 
     private sealed record CacheEntry(long Length, DateTime LastWriteTimeUtc, MetadataModule Module);

@@ -179,7 +179,13 @@ public class TypeQueryTests
     [Fact]
     public void APredicateThatHitsAMissingDependency_ExcludesTheType()
     {
-        TypeQuery broken = Samples().Where(t => t == typeof(Circle) ? throw new TypeLoadException("missing dependency") : true);
+        TypeQuery broken = Samples().Where(t =>
+        {
+            if (t == typeof(Circle))
+                throw new TypeLoadException("missing dependency");
+
+            return true;
+        });
 
         broken.ShouldNotContain(typeof(Circle));
         broken.ShouldContain(typeof(HiddenSquare));

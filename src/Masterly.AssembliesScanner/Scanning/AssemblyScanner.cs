@@ -486,11 +486,8 @@ public sealed class AssemblyScanner
     private AssemblyScanner AddPatterns(string[] patterns, PatternSyntax syntax, bool exclude)
     {
         ArgumentNullException.ThrowIfNull(patterns);
-        foreach (string text in patterns)
+        foreach (string text in patterns.Where(p => !string.IsNullOrWhiteSpace(p)))
         {
-            if (string.IsNullOrWhiteSpace(text))
-                continue;
-
             NamePattern pattern = NamePattern.Parse(text, syntax);
             if (exclude)
                 pattern = pattern.AsExclusion();
@@ -618,11 +615,8 @@ public sealed class AssemblyScanner
         string[] files = Directory.GetFiles(directory.Path, "*.dll", options);
         Array.Sort(files, StringComparer.OrdinalIgnoreCase);
 
-        foreach (string file in files)
-        {
-            if (seenPaths.Add(file))
-                candidates.Add(Candidate.ForFile(file, Path.GetRelativePath(directory.Path, file).Replace('\\', '/'), AssemblySource.File));
-        }
+        foreach (string file in files.Where(seenPaths.Add))
+            candidates.Add(Candidate.ForFile(file, Path.GetRelativePath(directory.Path, file).Replace('\\', '/'), AssemblySource.File));
     }
 
     private static void AddLoaded(Assembly assembly, AssemblySource source, List<Candidate> candidates, HashSet<string> seenPaths)
@@ -649,11 +643,8 @@ public sealed class AssemblyScanner
 
         while (pending.Count > 0)
         {
-            foreach (AssemblyReferenceInfo reference in pending.Dequeue().References)
+            foreach (AssemblyReferenceInfo reference in pending.Dequeue().References.Where(r => visited.Add(r.Name)))
             {
-                if (!visited.Add(reference.Name))
-                    continue;
-
                 string? path = HostAssemblies.ResolvePath(reference.Name);
                 if (path is null)
                     continue;

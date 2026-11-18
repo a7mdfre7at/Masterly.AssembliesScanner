@@ -202,12 +202,12 @@ public sealed class ServiceRegistrationBuilder
                         break;
 
                     case RuleKind.ClosedTypes:
-                        foreach (Type closed in TypeQuery.GetClosedTypesOf(type, rule.OpenGeneric!))
-                        {
-                            Type? service = Normalize(type, closed);
-                            if (service is not null)
-                                Add(services, Describe(service, type, rule.Lifetime, rule.Key), rule.Strategy);
-                        }
+                        IEnumerable<Type> closedServices = TypeQuery.GetClosedTypesOf(type, rule.OpenGeneric!)
+                            .Select(closed => Normalize(type, closed))
+                            .OfType<Type>();
+
+                        foreach (Type service in closedServices)
+                            Add(services, Describe(service, type, rule.Lifetime, rule.Key), rule.Strategy);
                         break;
 
                     case RuleKind.Attributed:
@@ -244,23 +244,21 @@ public sealed class ServiceRegistrationBuilder
                 break;
 
             case Selector.MatchingInterface:
-                foreach (Type service in GetServiceInterfaces(implementation))
-                {
-                    if (service.Name == "I" + implementation.Name)
-                        Add(services, Describe(service, implementation, lifetime, key), strategy);
-                }
+                foreach (Type service in GetServiceInterfaces(implementation).Where(s => s.Name == "I" + implementation.Name))
+                    Add(services, Describe(service, implementation, lifetime, key), strategy);
                 break;
 
             case Selector.SelfWithInterfaces:
                 Add(services, Describe(implementation, implementation, lifetime, key), strategy);
-                foreach (Type service in GetServiceInterfaces(implementation))
-                {
-                    // Open generics cannot be registered through a factory, so they get a plain registration.
-                    ServiceDescriptor descriptor = implementation.IsGenericTypeDefinition
+
+                // Open generics cannot be registered through a factory, so they get a plain registration.
+                IEnumerable<ServiceDescriptor> forwarded = GetServiceInterfaces(implementation).Select(service =>
+                    implementation.IsGenericTypeDefinition
                         ? Describe(service, implementation, lifetime, key)
-                        : Forward(service, implementation, lifetime, key);
+                        : Forward(service, implementation, lifetime, key));
+
+                foreach (ServiceDescriptor descriptor in forwarded)
                     Add(services, descriptor, strategy);
-                }
                 break;
 
             case Selector.Explicit:
@@ -299,18 +297,11 @@ public sealed class ServiceRegistrationBuilder
 
     /// <summary>The interfaces of a class that are worth registering, shaped so the container accepts them.</summary>
     private static IEnumerable<Type> GetServiceInterfaces(Type implementation)
-    {
-        foreach (Type candidate in implementation.GetInterfaces())
-        {
+        => implementation.GetInterfaces()
             // IDisposable, IEquatable<T>, IEnumerable<T> and friends are not services.
-            if (candidate.Assembly == typeof(object).Assembly)
-                continue;
-
-            Type? service = Normalize(implementation, candidate);
-            if (service is not null)
-                yield return service;
-        }
-    }
+            .Where(candidate => candidate.Assembly != typeof(object).Assembly)
+            .Select(candidate => Normalize(implementation, candidate))
+            .OfType<Type>();
 
     /// <summary>
     /// Turns the interface of an open generic class into the open generic the container needs

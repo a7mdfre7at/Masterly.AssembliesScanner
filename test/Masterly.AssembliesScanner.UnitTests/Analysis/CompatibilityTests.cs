@@ -413,7 +413,7 @@ public class CompatibilityTests : IDisposable
         Fixture.Compile(_temp.Path, pluginName, "public class User { public int Use() => Contract.Api.One() + Contract.Api.Two(); }", [v1]);
 
         // A file with the right name that is not an assembly does not count.
-        File.WriteAllText(Path.Combine(_temp.Path, contract + ".dll"), "not an assembly");
+        File.WriteAllText(Path.Join(_temp.Path, contract + ".dll"), "not an assembly");
 
         CompatibilityIssue issue = Assemblies.Scan().FromDirectory(_temp.Path).Scan().CheckCompatibility().ShouldHaveSingleItem();
 

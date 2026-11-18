@@ -20,12 +20,13 @@ internal sealed class CompatibilityChecker
     public CompatibilityChecker(CompatibilityOptions options, IEnumerable<AssemblyDescriptor> scanned)
     {
         _options = options;
-        foreach (AssemblyDescriptor assembly in scanned)
-        {
-            if (assembly.Path is not null)
-                _scanned.TryAdd(assembly.Name, assembly.Path);
-        }
+        foreach (AssemblyDescriptor assembly in scanned.Where(a => a.Path is not null))
+            _scanned.TryAdd(assembly.Name, assembly.Path!);
     }
+
+    /// <summary>The handles that are present, without boxing them.</summary>
+    private static IEnumerable<EntityHandle> Present(IEnumerable<EntityHandle?> handles)
+        => handles.Where(h => h.HasValue).Select(h => h!.Value);
 
     /// <summary>Checks one assembly, or returns <c>null</c> when it has no file that can be read.</summary>
     public List<CompatibilityIssue>? Check(AssemblyDescriptor assembly)
@@ -107,12 +108,9 @@ internal sealed class CompatibilityChecker
         {
             // The runtime opens a referenced assembly only when a type from it is needed. A reference that no type
             // reference points into (a facade that only forwards types, for example) cannot fail on its own.
-            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (TypeReferenceHandle typeHandle in _reader.TypeReferences)
-            {
-                if (ReferencedAssembly(_reader, typeHandle) is { } scope)
-                    used.Add(scope);
-            }
+            var used = new HashSet<string>(
+                _reader.TypeReferences.Select(typeHandle => ReferencedAssembly(_reader, typeHandle)).OfType<string>(),
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (AssemblyReferenceHandle handle in _reader.AssemblyReferences)
             {
@@ -368,11 +366,8 @@ internal sealed class CompatibilityChecker
                     interfaces.Add(contract);
             }
 
-            foreach (Link contract in interfaces)
+            foreach (Link contract in interfaces.Where(c => !ReferenceEquals(c.Module, module)))
             {
-                if (ReferenceEquals(contract.Module, module))
-                    continue;
-
                 if ((contract.Definition.Attributes & TypeAttributes.Interface) == 0)
                 {
                     ReportFor(typeName, CompatibilityIssueKind.InvalidInheritance, contract.Module.Name, $"{typeName} : {contract.Display}",
@@ -529,11 +524,11 @@ internal sealed class CompatibilityChecker
             }
 
             // A call on a hidden type fails with it.
-            foreach (MemberReferenceHandle handle in _reader.MemberReferences)
-            {
-                if (UnderlyingType(_reader, _reader.GetMemberReference(handle).Parent) is { } parent && _users.TryGetValue(parent, out Draft? draft))
-                    _users.TryAdd(handle, draft);
-            }
+            IEnumerable<(MemberReferenceHandle Handle, Draft? Owner)> calls = _reader.MemberReferences.Select(handle =>
+                (handle, UnderlyingType(_reader, _reader.GetMemberReference(handle).Parent) is { } parent ? _users.GetValueOrDefault(parent) : null));
+
+            foreach ((MemberReferenceHandle handle, Draft? owner) in calls.Where(c => c.Owner is not null))
+                _users.TryAdd(handle, owner!);
         }
 
         // ---------------------------------------------------------------- who uses what
@@ -562,11 +557,11 @@ internal sealed class CompatibilityChecker
                 if (Normalize(type.BaseType) is { } baseType)
                     yield return (typeName, baseType);
 
-                foreach (InterfaceImplementationHandle implementation in type.GetInterfaceImplementations())
-                {
-                    if (Normalize(_reader.GetInterfaceImplementation(implementation).Interface) is { } contract)
-                        yield return (typeName, contract);
-                }
+                IEnumerable<EntityHandle?> contracts = type.GetInterfaceImplementations()
+                    .Select(implementation => Normalize(_reader.GetInterfaceImplementation(implementation).Interface));
+
+                foreach (EntityHandle contract in Present(contracts))
+                    yield return (typeName, contract);
             }
         }
 
@@ -591,11 +586,8 @@ internal sealed class CompatibilityChecker
                     try
                     {
                         BlobReader il = module.Image.GetMethodBody(method.RelativeVirtualAddress).GetILReader();
-                        foreach (int token in ILTokens.Read(il))
-                        {
-                            if (Normalize(MetadataTokens.EntityHandle(token)) is { } handle)
-                                _ilUses.Add((user, handle));
-                        }
+                        foreach (EntityHandle handle in Present(ILTokens.Read(il).Select(token => Normalize(MetadataTokens.EntityHandle(token)))))
+                            _ilUses.Add((user, handle));
                     }
                     catch (Exception ex) when (ex is BadImageFormatException or ArgumentException)
                     {
@@ -647,9 +639,9 @@ internal sealed class CompatibilityChecker
                 yield return HostAssemblies.FindFile(name);
 
             yield return owner._scanned.TryGetValue(name, out string? scanned) ? scanned : null;
-            yield return Existing(Path.Combine(directory, fileName));
+            yield return Existing(Path.Join(directory, fileName));
             foreach (string probe in owner._options.ProbingDirectories)
-                yield return Existing(Path.Combine(probe, fileName));
+                yield return Existing(Path.Join(probe, fileName));
 
             if (!owner._options.PreferHostAssemblies)
                 yield return HostAssemblies.FindFile(name);
@@ -838,11 +830,12 @@ internal static class ILTokens
 
     static ILTokens()
     {
-        foreach (FieldInfo field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
-        {
-            if (field.GetValue(null) is not OpCode code)
-                continue;
+        IEnumerable<OpCode> codes = typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Select(field => field.GetValue(null))
+            .OfType<OpCode>();
 
+        foreach (OpCode code in codes)
+        {
             ushort value = (ushort)code.Value;
             if (code.Size == 1)
                 OneByte[value] = code;

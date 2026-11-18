@@ -191,11 +191,11 @@ public sealed class ScanResult : IReadOnlyList<AssemblyDescriptor>
         {
             Type[] candidates = TypeQuery.GetLoadableTypes(assembly, null);
             bool found = false;
-            foreach (Type type in candidates)
-            {
-                if (!type.IsClass || type.IsAbstract || type.ContainsGenericParameters || !typeof(TPlugin).IsAssignableFrom(type))
-                    continue;
+            IEnumerable<Type> pluginTypes = candidates.Where(t =>
+                t.IsClass && !t.IsAbstract && !t.ContainsGenericParameters && typeof(TPlugin).IsAssignableFrom(t));
 
+            foreach (Type type in pluginTypes)
+            {
                 found = true;
                 try
                 {
